@@ -1,7 +1,5 @@
-.libPaths(c("~/Documents/Rpackagesv2",.libPaths()))
 stringsAsFactors = FALSE
 
-library(GEOquery)
 library(readr)
 library(tidyverse)
 library(xCell)
@@ -54,4 +52,35 @@ mayo_xcell <- as.data.frame(cbind(sample_id = row.names(mayo_xcell),
                                   mayo_xcell))
 
 write.table(mayo_xcell, file="/Volumes/Lab_Gerke/dataDump/GSE46691_xcell.txt",
+            row.names = FALSE, quote=FALSE,sep="\t")
+
+#########################################################################################
+# group by gene names and take highest for each person to use as single exp value
+gse_single_gene_max <- gse[,-1] %>%
+  group_by(gene) %>%
+  summarise_all(max)
+
+# grab names for matrix later
+gene_names_max <- gse_single_gene_max$gene
+sample_names_max <- colnames(gse_single_gene_max)[2:ncol(gse_single_gene_max)]
+
+# transpose and numeric - might be able to skip since need to transpose again
+exp_max <- as.data.frame(t(gse_single_gene_max))
+colnames(exp_max) <- gene_names_max
+exp_max <- exp_max[-1,]
+exp_max[] <- lapply(exp_max, function(x) as.numeric(as.character(x)))
+exp_max <- as.data.frame(cbind(sample_id = sample_names_max,exp_max))
+
+x_max <- data.matrix(exp_max[,2:ncol(exp_max)])
+xx_max <- t(x_max)
+
+# run xCell
+xy_max <- xCellAnalysis(xx_max)
+
+mayo_xcell_max <- t(xy_max)
+mayo_xcell_max <- as.data.frame(mayo_xcell_max)
+mayo_xcell_max <- as.data.frame(cbind(sample_id = row.names(mayo_xcell_max),
+                                  mayo_xcell_max))
+
+write.table(mayo_xcell_max, file="/Volumes/Lab_Gerke/dataDump/GSE46691_xcell_max.txt",
             row.names = FALSE, quote=FALSE,sep="\t")
